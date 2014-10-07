@@ -17,6 +17,9 @@
 from distutils.core import setup
 import os
 
+long_description = """\
+AvOID allows you to easily spawn an entire OpenStack fleet of instances using Ansible playbooks. It is used to deploy and redeploy a complete Cloud topology as seamlessly as possible.
+"""
 
 data_files = []
 
@@ -26,9 +29,12 @@ for dirpath, dirnames, filenames in os.walk('avoid-files'):
 setup(name='AvOID',
       version='0.1',
       description='Ansible Openstack Instance Deployer',
-      author='Aymeric BERON',
-      author_email='aymeric.beron@alcatel-lucent.com',
+      author='Alcatel-Lucent Enterprise Personal Cloud R&D',
+      author_email='dev@opentouch.net',
+      url='https://github.com/OpenTouch/AvOID',
       packages=['avoidlib'],
       scripts=['bin/avoid-cli', 'bin/avoid-web', 'bin/avoid-web-cli'],
       data_files = data_files,
-     )
+      platforms = ['All'],
+      license = 'Apache 2.0',
+)
