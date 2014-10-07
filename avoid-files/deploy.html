@@ -1,0 +1,123 @@
+<html>
+    <head>
+        <title>AvOID</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="author" content="Alcatel-Lucent Personal Cloud">
+        <link rel="stylesheet" type="text/css" href="dist/css/bootstrap.min.css" >
+        <script src="http://code.jquery.com/jquery.js"></script>
+        <script src="dist/js/bootstrap.min.js"></script>
+        <script>
+            function endsWith(str, suffix) {
+                return str.indexOf(suffix, str.length - suffix.length) !== -1;
+            }
+        
+        var ws;
+            function onDeployCheckboxClick(cb, name){
+                var action = "remove ";
+                if(cb.checked){
+                    action = "add ";
+                }
+                ws.send("redeploy " + action + name);
+            }
+            function onReconfCheckboxClick(cb, name){
+                var action = "remove ";
+                if(cb.checked){
+                    action = "add ";
+                }
+                ws.send("reconf " + action + name);
+            }
+            function start() {
+                {% if wss %}
+                var proto = "wss://";
+                {% else %}
+                var proto = "ws://";
+                {% end %}
+                ws = new WebSocket(proto + location.host + "/ws");
+                ws.onmessage = function (evt) {
+                    var o = JSON.parse(evt.data);
+                    if(o.type == "run") {
+                        document.getElementById("go").disabled = o.running;
+                        $(':checkbox').prop('disabled', o.running);
+                        return;
+                    }
+
+                    var pbname = "";
+                    var iname = "";
+                    if(o.type == "instance") {
+                        iname = o.name;
+                        if(o.ip){
+                            iname = '<a href="ssh://' + o.ip + '">' + o.name + '</a>';
+                        }
+                    }
+                    else if(o.type == "playbook") {
+                        var pbname = o.name;
+                    }
+                    redeploy = "";
+                    reconf = "";
+                    if(!o.static) {
+                        redeploy = '<input type="checkbox" '+ (o.redeploy?"checked":"") + ' onclick="onDeployCheckboxClick(this, \'' + o.name + '\')"/>';
+                        reconf = '<input type="checkbox" ' + (o.reconf?"checked":"") + ' onclick="onReconfCheckboxClick(this, \'' + o.name + '\')"/>';
+                    }
+                    row = '<td class="text-center">' + pbname + '</td><td class="text-center">' + iname + '</td><td class="text-center">' + redeploy + '</td><td class="text-center">' + reconf + '</td><td class="text-center">' + o.status +'</td>';
+                    var e = document.getElementById();
+                    if($('#' + o.name).length){
+                        $('#' + o.name).html(row);
+                    }
+                    else {
+                        var line = '<tr id="' + o.name + '">' + row + '</tr>';
+                        if(o.type == "instance") {
+                            $('#' + o.playbook).after(line);
+                        }
+                        else {
+                            $('#table').append(line);
+                        }
+                    }
+                };
+
+                document.getElementById("go").onclick = function(){
+                    ws.send("run");
+                }
+            }
+        </script>
+    </head>
+    <body onload="start();">
+        <div class="container">
+          <div class="row">
+            <div class="col-md-12 text-center">
+              <br/>
+              <div class="well well-sm">
+                <h1>AvOID</h1>
+              </div>
+            </div>
+          </div>
+        </div>
+        <br/>
+
+        <div class="container">
+          <div class="row">
+            <div class="col-md-12">
+
+              <div class="panel panel-primary">
+                <div class="panel-heading">
+                  <h3 class="panel-title">Nodes and Playbooks</h3>
+                </div>
+                <div class="panel-body" id="nodes_list">
+
+        <table border="1" class="table" id="table">
+            <tr>
+                <th class="text-center">Playbook</th>
+                <th class="text-center">Instance</th>
+                <th class="text-center">Redeploy</th>
+                <th class="text-center">Reconfigure</th>
+                <th class="text-center">Status</th>
+            </tr>
+        </table>
+        <p class="text-right">
+        <button type="submit" class="btn btn-primary" id="go">Go!</button>
+        </p>
+
+        </div></div></div>
+        </div></div>
+    </body>
+</html>

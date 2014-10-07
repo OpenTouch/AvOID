@@ -1,0 +1,72 @@
+#!/usr/bin/env python2.7
+
+import sys, threading, time
+import base64, json
+try:
+    import websocket
+except:
+    print "pip install websocket-client"
+    sys.exit(1)
+
+
+class Instance:
+    def __init__(self, o):
+        self.o = o
+
+
+
+class WSClient(threading.Thread):
+    def __init__(self, url="ws://localhost:8888/ws", user=None, passwd=None, verbose=False):
+        threading.Thread.__init__(self)
+        if verbose:
+            websocket.enableTrace(True)
+        auth = ""
+        if user and passwd:
+            auth = "Authorization: Basic " + base64.b64encode(user + ":" + passwd)
+        self.ws = websocket.create_connection(url, header=[auth])
+        # Retrieve initial state
+        self.instances = {}
+        self.playbooks = {}
+        self.init_done = False
+        while not self.init_done:
+            self.recvRefresh()
+        self.display()
+        # Run
+        self.setDaemon(True)
+        self.start()
+
+    def recvRefresh(self):
+        o = json.loads(self.ws.recv())
+        if o["type"] == "instance":
+            self.instances[o["name"]] = o
+        elif o["type"] == "playbook":
+            self.playbooks[o["name"]] = o
+        elif o["type"] == "run":
+            self.is_running = o["running"]
+            self.init_done = True
+
+    def display(self):
+        for p in self.playbooks.values():
+            print p["name"]
+        for i in self.instances.values():
+            print i["name"]
+
+    def run(self):
+        while True:
+            self.recvRefresh()
+            CURSOR_UP_ONE = '\x1b[1A'
+            ERASE_LINE = '\x1b[2K'
+            # Clear display
+            print((CURSOR_UP_ONE + ERASE_LINE)*(len(self.playbooks) + 1))
+            self.display()
+
+
+if __name__ == '__main__':
+    args = list(sys.argv)
+    verbose = False
+    if "-v" in args:
+        verbose = True
+        args.remove("-v")
+
+    WSClient(verbose = verbose)
+

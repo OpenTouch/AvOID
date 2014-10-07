@@ -1,0 +1,196 @@
+#!/usr/bin/env python2.7
+
+import time, os, sys, threading
+from avoidlib import Topology, TopologyEvents
+import tornado.ioloop
+import tornado.web
+import tornado.websocket
+import json
+
+class MainHandler(tornado.web.RequestHandler):
+    def initialize(self, wss):
+        self.wss = wss
+
+    def get(self):
+        self.render(sys.prefix + '/avoid-files/deploy.html', wss=self.wss)
+
+class Client:
+    def __init__(self, conn, topo):
+        self.conn = conn
+        self.topo = topo
+        self.lock = threading.Lock()
+
+    def send(self, obj):
+        self.lock.acquire()
+        #print json.dumps(obj)
+        self.conn.write_message(json.dumps(obj))
+        self.lock.release()
+
+    def updatePlaybook(self, p):
+        obj = {}
+        obj["type"] = "playbook"
+        obj["name"] = p.name
+        if p.status != "Running":
+            label = p.status
+        else:
+            if p.current_task == 0:
+                label = "Waiting"
+            else:
+                label = "[%i/%i] %s"%(p.current_task, len(p.tasks), p.tasks[p.current_task-1])
+        obj["status"] = label
+        obj["static"] = (p.status == "Not playable")
+        redeploy = True
+        for i in p.instances:
+            if not i in self.topo.instances_to_redeploy:
+                redeploy = False
+                break
+        obj["redeploy"] = redeploy
+        obj["reconf"] = p in self.topo.playbooks_to_play
+        self.send(obj)
+
+    def updateInstance(self, i):
+        obj = {}
+        obj["type"] = "instance"
+        obj["name"] = i.name
+        obj["ip"] = i.getIPAddress()
+        obj["status"] = i.status
+        obj["static"] = i.static
+        obj["playbook"] = i.playbook_file
+        obj["redeploy"] = i in self.topo.instances_to_redeploy
+        obj["reconf"] = self.topo.findPlaybook(i.playbook_file) in self.topo.playbooks_to_play
+        self.send(obj)
+
+    def updateRunning(self):
+        obj = {}
+        obj["type"] = "run"
+        obj["running"] = self.topo.is_running
+        self.send(obj)
+
+
+class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    def initialize(self, topo, view):
+        self.topo = topo
+        self.view = view
+
+    def check_origin(self, origin):
+        return True
+
+    def open(self):
+        print "WebSocket opened"
+        c = Client(self, self.topo)
+        self.view.clients.append(c)
+        
+        # Notify about current sate when connect
+        for p in self.topo.playbooks:
+            c.updatePlaybook(p)
+        for i in self.topo.instances:
+            c.updateInstance(i)
+        c.updateRunning()
+
+    def on_message(self, message):
+        #print message
+        if message == "run":
+            self.topo.run()
+            return
+        re, cmd, name = message.split(" ", 2)
+        if cmd == "add":
+            if re == "redeploy":
+                self.topo.addToRedeploy(name)
+            else:
+                self.topo.addToReconfigure(name)
+        elif cmd == "remove":
+            if re == "redeploy":
+                self.topo.removeToRedeploy(name)
+            else:
+                self.topo.removeToReconfigure(name)
+        else:
+            print "Unknow cmd %s with param %s"%(cmd, param)
+    def on_close(self):
+        print "WebSocket closed"
+        for c in self.view.clients:
+            if c.conn == self:
+                self.view.clients.remove(c)
+                break
+
+class WebView(TopologyEvents):
+    def __init__(self, topo):
+        self.topo = topo
+        self.topo.callbacks.append(self)
+        self.clients = []
+
+    def onPlaybookAdded(self, playbook):
+        for c in self.clients:
+            c.updatePlaybook(playbook)
+            for i in playbook.instances:
+                c.updateInstance(i)
+
+    def onPlaybookRemoved(self, playbook):
+        self.onPlaybookAdded(playbook)
+
+    def onInstanceAdded(self, instance):
+        for c in self.clients:
+            c.updateInstance(instance)
+            p = self.topo.findPlaybook(instance.playbook_file)
+            c.updatePlaybook(p)
+
+    def onInstanceRemoved(self, instance):
+        self.onInstanceAdded(instance)
+
+    def onStarted(self):
+        for c in self.clients:
+            c.updateRunning()
+
+    def onInstanceDeleted(self, instance):
+        for c in self.clients:
+            c.updateInstance(instance)
+
+    def onInstanceCreated(self, instance):
+        self.onInstanceDeleted(instance)
+    
+    def onInstanceActive(self, instance):
+        self.onInstanceDeleted(instance)
+    
+    def onInstanceReady(self, instance):
+        self.onInstanceDeleted(instance)
+
+    def onAllPlaybooksCompleted(self):
+        self.onStarted()
+
+    def onPlaybookError(self, playbook):
+        self.onStarted()
+        self.onPlaybookCompleted(playbook)
+
+    def onPlaybookUpdated(self, playbook):
+        self.onPlaybookCompleted(playbook)
+
+    def onPlaybookCompleted(self, playbook):
+        for c in self.clients:
+            c.updatePlaybook(playbook)
+
+if __name__ == '__main__':
+    args = list(sys.argv)
+    verbose = False
+    if "-v" in args:
+        verbose = True
+        args.remove("-v")
+    wss = False
+    if "-wss" in args:
+        wss = False
+        args.remove("-wss")
+
+    # Check argument
+    if len(args) != 2 or not os.path.isfile(args[1]):
+        print "Usage %s: <topology_file.yml>"
+        sys.exit(1)
+
+    t = Topology(args[1], verbose)
+    v = WebView(t)
+    print "Read of %s done: %i VMs and %i playbooks"%(args[1], len(t.instances), len(t.playbooks))
+
+    application = tornado.web.Application([
+        (r"/", MainHandler, dict(wss=wss)),
+        (r"/ws", WebSocketHandler, dict(topo=t, view=v)),
+        (r"/dist/(.*)", tornado.web.StaticFileHandler, {"path": sys.prefix + "/avoid-files/dist/"}),
+    ], debug=True)
+    application.listen(8888)
+    tornado.ioloop.IOLoop.instance().start()
