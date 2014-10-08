@@ -1,0 +1,7 @@
+pyyaml
+python-novaclient
+python-cinderclient
+python-neutronclient
+ansible
+tornado
+websocket-client
