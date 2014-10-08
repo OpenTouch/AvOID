@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
     # Check argument
     if len(args) < 3 or not os.path.isfile(args[1]):
-        print "Usage %s: <topology_file.yml> <command> [opts]"
+        print "Usage %s: <topology_file.yml> <command> [opts]"%args[0]
         print "  where <command> is:"
         print "   - status: list topology status"
         print "   - redeploy <list of playbooks or VM names>: terminate VM, spawn a new one and restart playbook"

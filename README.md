@@ -79,7 +79,6 @@ Example with three instances:
         ansible_config_keys: logs
         static:
 
-
 ```
 For each instance, following parameters are available:
 
@@ -97,7 +96,7 @@ For each instance, following parameters are available:
 
 In case of combining parameters 'floatings_ips', 'additional_network' and 'vips', they have to be consistent (no check).
 
-## How it work ?
+## How it works ?
 Behavior is implemented in avoidlib. This make sequencially:
 
 - [On redeploy] Delete/create instances in parallel 
@@ -135,7 +134,6 @@ According to topology file example, template looks like:
 frontend
 db
 logs
-
 
 ```
 

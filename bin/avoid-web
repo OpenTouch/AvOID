@@ -194,7 +194,7 @@ if __name__ == '__main__':
 
     # Check argument
     if len(args) != 2 or not os.path.isfile(args[1]):
-        print "Usage %s: <topology_file.yml>"
+        print "Usage %s: <topology_file.yml>"%args[0]
         sys.exit(1)
 
     t = Topology(args[1], verbose)
