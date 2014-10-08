@@ -178,7 +178,7 @@ This is a web server using Tornado with websockets. It listens on port 8888.
 Usage avoid-web: <topology_file.yml>
 ```
 
-![avoid-web](avoid-web.png =600x)
+![avoid-web](avoid-web.png)
 
 Test has been done behind NGINX (>1.4 for websocket support) reverse proxy with basic authentication and SSL. 
 
