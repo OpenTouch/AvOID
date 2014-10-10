@@ -194,7 +194,6 @@ class Instance:
         for v in l:
             while len(self.cinder.volumes.get(v)._info["attachments"]):
                 time.sleep(1)
-            print "Destroying %s volume"%v
             self.cinder.volumes.delete(v)
 
     def create(self):
@@ -205,7 +204,6 @@ class Instance:
         if len(self.volumes):
             letter = ord('b')
             for vol in self.volumes:
-                print "Creating volume %s (%i GB)"%(vol.name, vol.size)
                 v = self.cinder.volumes.create(display_name=vol.name, size=vol.size)
                 block_device_mapping["/dev/vd%c"%chr(letter)] = "%s:::0"%v.id
                 letter= letter + 1
