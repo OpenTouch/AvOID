@@ -24,23 +24,45 @@ class CliView(TopologyEvents):
         self.beginTime = time.time()
         self.end = False
     
+    def printVMsStatus(self):
+        print "WARNING: status is OK when VM is ACTIVE in Openstack i.e. it can be not started or not configured"
+        for instance in t.instances_to_redeploy:
+            status = instance.status
+            ip = instance.getIPAddress()
+            if ip:
+                status = status + " [%s]"%ip.center(15)
+            if instance.static:
+                status = status + " [static]"
+            print "%s%s"%(instance.name.ljust(30), status)
+            sys.stdout.flush()
+
+    def refreshVMsStatus(self):
+        CURSOR_UP_ONE = '\x1b[1A'
+        ERASE_LINE = '\x1b[2K'
+        # Clear display
+        print((CURSOR_UP_ONE + ERASE_LINE)*(len(self.topo.instances_to_redeploy) + 2))
+        self.printVMsStatus()
+
     def onRedeployStarted(self):
         print "Respawning instances..."
+        print
         self.spawnBeginTime = time.time()
+        self.printVMsStatus()
 
     def onInstanceDeleted(self, instance):
-        print "%s deleted"%instance.name
+        self.refreshVMsStatus()
 
     def onInstanceCreated(self, instance):
-        print "%s created, waiting for ready"%instance.name
+        self.refreshVMsStatus()
 
     def onInstanceActive(self, instance):
-        print "%s active -> %s"%(instance.name, instance.getIPAddress())
+        self.refreshVMsStatus()
 
     def onInstanceReady(self, instance):
-        print "%s ready"%(instance.name)
+        self.refreshVMsStatus()
 
     def onAllInstancesReady(self):
+        self.refreshVMsStatus()
         print "VMs ready in %i seconds"%(time.time() - self.spawnBeginTime)
 
     def onInventoryGenerated(self):
@@ -48,13 +70,11 @@ class CliView(TopologyEvents):
 
     def onAllPlaybooksStarted(self):
         print "Starting playing playbooks..."
+        print
         self.playbookBeginTime = time.time()
+        self.printPlaybookStatus()
 
-    def onPlaybookUpdated(self, playbook):
-        CURSOR_UP_ONE = '\x1b[1A'
-        ERASE_LINE = '\x1b[2K'
-        # Clear display
-        print((CURSOR_UP_ONE + ERASE_LINE)*(len(self.topo.playbooks_to_play) + 1))
+    def printPlaybookStatus(self):
         # Display
         for pb in self.topo.playbooks_to_play:
             if pb.status != "Running":
@@ -68,11 +88,23 @@ class CliView(TopologyEvents):
             print "%s [%s] %i/%i %s"%(pb.name.ljust(25), progress.ljust(20), pb.current_task, len(pb.tasks), label)
         sys.stdout.flush()
 
+    def refreshPlaybookStatus(self):
+        CURSOR_UP_ONE = '\x1b[1A'
+        ERASE_LINE = '\x1b[2K'
+        # Clear display
+        print((CURSOR_UP_ONE + ERASE_LINE)*(len(self.topo.playbooks_to_play) + 1))
+        self.printPlaybookStatus()
+
+    def onPlaybookUpdated(self, playbook):
+        self.refreshPlaybookStatus()
+
     def onAllPlaybooksCompleted(self):
+        self.refreshPlaybookStatus()
         print "VMs configured with ansible in %i seconds"%(time.time() - self.playbookBeginTime)
         self.exit(True)
 
     def onPlaybookError(self, playbook):
+        self.refreshPlaybookStatus()
         print playbook.console_output
         print "Error during configuration with ansible"
         self.exit(False)
@@ -112,18 +144,9 @@ if __name__ == '__main__':
     if len(args) > 3:
         params = args[3:]
 
-    if cmd == "status":
-        print "WARNING: status is OK when VM is ACTIVE in Openstack i.e. it can be not started or not configured"
-        for instance in t.instances:
-            status = instance.status
-            ip = instance.getIPAddress()
-            if ip:
-                status = status + " [%s]"%ip.center(15)
-            if instance.static:
-                status = status + " [static]"
-            print "%s%s"%(instance.name.ljust(30), status)
-        sys.exit(0)
-    elif cmd == "redeploy":
+    v = CliView(t)
+
+    if cmd == "redeploy":
         if len(params):
             for name in params:
                 t.addToRedeploy(name)
@@ -131,10 +154,13 @@ if __name__ == '__main__':
             print "Usage %s: <topology_file.yml> redeploy <instance_name/playbook_name> [<instance_name/playbook_name>]"
             sys.exit(1)
 
-    elif cmd == "redeployall":
+    elif cmd == "redeployall" or cmd == "status":
         for i in t.instances:
             if not i.static:
                 t.addToRedeploy(i.name)
+        if cmd == "status":
+            v.printVMsStatus()
+            sys.exit(0)
 
     elif cmd == "runplaybook":
         if len(params):
@@ -153,7 +179,6 @@ if __name__ == '__main__':
         t.generateAnsibleInventory()
 
     print "%i instances to recreate and %i playbooks to play"%(len(t.instances_to_redeploy), len(t.playbooks_to_play))
-    v = CliView(t)
     t.run()
     while not v.end:
         time.sleep(1)

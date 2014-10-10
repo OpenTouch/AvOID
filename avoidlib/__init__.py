@@ -189,7 +189,6 @@ class Instance:
         l = []
         for v in self.vm._info['os-extended-volumes:volumes_attached']:
             l.append(v["id"])
-        print "Destroying %s instance"%self.name
         self.nova.servers.delete(self.vm)
         # Destroy attached volumes
         for v in l:
@@ -218,7 +217,6 @@ class Instance:
                     if v.status == "available":
                         created = True
                     time.sleep(1)
-        print "Creating %s instance"%self.name
         flavor = self.nova.flavors.find(name=self.flavor)
         nics = []
         for network in self.networks:
@@ -239,7 +237,6 @@ class Instance:
         
         i = 0
         if len(self.vips) > 0:
-            print "number of vips :" + str(len(self.vips))
             # create port
             for vip in self.vips:
                 if self.getPortId(vip) == None:
@@ -273,7 +270,6 @@ class Instance:
                 raise RuntimeError("Error: could not associate floating IP on not existing VM %s"%self.name)
             cpt = 0
             for floating_ip in self.floating_ips:
-                print "Associating %s floating IP"%floating_ip
                 self.vm.add_floating_ip(floating_ip, self.getIPAddress(cpt))
                 cpt = cpt + 1
 
@@ -290,12 +286,10 @@ class Instance:
         if len(self.additional_security_groups):
             if not self.vm:
                 raise RuntimeError("Error: could not set security groups on not existing VM %s"%self.name)
-            print "Setting %s security groups"%", ".join(self.additional_security_groups)
             for sec in self.additional_security_groups:
                 self.vm.add_security_group(sec)
 
     def createPortForVip(self,id, ip):
-        print "port creation for vip " + ip
         securityGroupsIds = []
         for sec in self.additional_security_groups:
             group_id = self.getSecurityGroupId(sec)
@@ -348,7 +342,8 @@ class Playbook:
         self.status = "Not played"
         if static:
             self.status = "Not playable"
- 
+        self.current_task = 0
+
     def prepare(self):
         if self.status == "Not playable":
             raise RuntimeError("Not allowed to play %s"%self.name)
@@ -706,13 +701,14 @@ class Topology(PlaybookEvents, InstanceEvents):
             c.onPlaybookError(playbook)
 
     def startPlaybooks(self):
-        for c in self.callbacks:
-            c.onAllPlaybooksStarted()
         self.generateAnsibleInventory()
         
         # Prepare playbooks to play
         for pb in self.playbooks_to_play:
             pb.prepare()
+
+        for c in self.callbacks:
+            c.onAllPlaybooksStarted()
 
         self.end = False
         self.counter = 0
