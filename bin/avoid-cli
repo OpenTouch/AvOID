@@ -173,7 +173,7 @@ if __name__ == '__main__':
     elif cmd == "runallplaybooks":
         for pb in t.playbooks:
             if pb.status != "Not playable":
-                self.addToReconfigure(pb.name)
+                t.addToReconfigure(pb.name)
 
     elif cmd == "geninventory":
         t.generateAnsibleInventory()
