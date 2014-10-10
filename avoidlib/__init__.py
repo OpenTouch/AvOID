@@ -573,6 +573,8 @@ class Topology(PlaybookEvents, InstanceEvents):
             instance = self.findInstance(vm.name)
             if instance:
                 instance.updateVM(vm)
+                if not instance in remainingTopoVMs:
+                    raise RuntimeError("Duplicated VM with name %s"%instance.name)
                 remainingTopoVMs.remove(instance)
         # Handle deleted VMs
         for i in remainingTopoVMs:
