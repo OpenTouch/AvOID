@@ -15,7 +15,7 @@
 #    under the License.
 
 from distutils.core import setup
-import os
+import os, sys
 
 long_description = """\
 AvOID allows you to easily spawn an entire OpenStack fleet of instances using Ansible playbooks. It is used to deploy and redeploy a complete Cloud topology as seamlessly as possible.
@@ -24,7 +24,7 @@ AvOID allows you to easily spawn an entire OpenStack fleet of instances using An
 data_files = []
 
 for dirpath, dirnames, filenames in os.walk('avoid-files'):
-    data_files.append([dirpath, [os.path.join(dirpath, f) for f in filenames]])
+    data_files.append([os.path.join(sys.prefix, 'share', dirpath), [os.path.join(dirpath, f) for f in filenames]])
 
 setup(name='AvOID',
       version='0.1',

@@ -26,7 +26,7 @@ class MainHandler(tornado.web.RequestHandler):
         self.wss = wss
 
     def get(self):
-        self.render(sys.prefix + '/avoid-files/deploy.html', wss=self.wss)
+        self.render(sys.prefix + '/share/avoid-files/deploy.html', wss=self.wss)
 
 class Client:
     def __init__(self, conn, topo):
@@ -204,7 +204,7 @@ if __name__ == '__main__':
     application = tornado.web.Application([
         (r"/", MainHandler, dict(wss=wss)),
         (r"/ws", WebSocketHandler, dict(topo=t, view=v)),
-        (r"/dist/(.*)", tornado.web.StaticFileHandler, {"path": sys.prefix + "/avoid-files/dist/"}),
+        (r"/dist/(.*)", tornado.web.StaticFileHandler, {"path": sys.prefix + "/share/avoid-files/dist/"}),
     ], debug=True)
     application.listen(8888)
     tornado.ioloop.IOLoop.instance().start()
