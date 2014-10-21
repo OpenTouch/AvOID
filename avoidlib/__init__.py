@@ -88,7 +88,7 @@ class InstanceEvents:
 
 
 class Instance:
-    def __init__(self, name, flavor, ansible_sections, playbook_file, volumes, floating_ips, vips, additional_security_groups, dependencies, nova, cinder, neutron, image, networks, ssh_key_name, ssh_user, ssh_key, cmdExe, static):
+    def __init__(self, name, flavor, ansible_sections, playbook_file, volumes, floating_ips, vips, additional_security_groups, dependencies, nova, cinder, neutron, image, networks, ssh_key_name, ssh_user, ssh_key, cmdExe, static, groups):
         self.name = name
         self.flavor = flavor
         self.ansible_sections = ansible_sections
@@ -112,6 +112,7 @@ class Instance:
         self.callbacks = []
         self.status = "Unavailable"
         self.static = static
+        self.groups = groups
         self.checkReady = False
 
     def updateVM(self, vm):
@@ -506,7 +507,10 @@ class Topology(PlaybookEvents, InstanceEvents):
             static = False
             if not playbook or "static" in node:
                 static = True
-            instance = Instance(name, flavor, ansible_config_keys, playbook, volumes, floating_ips, vips, additional_security_groups, dependencies, self.nova, cinder, neutron, os_image, networks, os_ssh_key, self.ssh_user, self.ssh_key, self.cmdExe, static)
+            groups = []
+            if "groups" in node:
+                groups = [x.strip() for x in node["groups"].split(",")]
+            instance = Instance(name, flavor, ansible_config_keys, playbook, volumes, floating_ips, vips, additional_security_groups, dependencies, self.nova, cinder, neutron, os_image, networks, os_ssh_key, self.ssh_user, self.ssh_key, self.cmdExe, static, groups)
             instance.callbacks.append(self)
             self.instances.append(instance)
         f.close()
@@ -544,6 +548,36 @@ class Topology(PlaybookEvents, InstanceEvents):
                     raise NameError("Dependency %s not defined in %s"%(dep, topofile))
 
         self.callbacks = []
+        # To search playbooks/instances with a name
+        self.instances_by_name = {}
+        self.playbooks_by_name = {}
+        for i in self.instances:
+            if i.name in self.instances_by_name or i.name in self.playbooks_by_name:
+                raise NameError("Two instances with name %s"%i.name)
+            self.instances_by_name[i.name] = [i]
+            self.playbooks_by_name[i.name] = [self.findPlaybook(i.playbook_file)]
+
+        for p in self.playbooks:
+            if p.name in self.instances_by_name or p.name in self.playbooks_by_name:
+                raise NameError("Playbook name %s with other playbook or instance"%p.name)
+            self.instances_by_name[p.name] = [p.instances]
+            self.playbooks_by_name[p.name] = [p]
+        for i in self.instances:
+            for g in i.groups:
+                if g in self.instances_by_name or g in self.playbooks_by_name:
+                    raise NameError("Group name %s conflicts with playbook or instance"%g)
+        for i in self.instances:
+            for g in i.groups:
+                if not g in self.instances_by_name:
+                    self.instances_by_name[g] = [i]
+                else:
+                    self.instances_by_name[g].append(i)
+                p = self.findPlaybook(i.playbook_file)
+                if not g in self.playbooks_by_name:
+                    self.playbooks_by_name[p.name] = [p]
+                elif not p in self.playbooks_by_name[g]:
+                    self.playbooks_by_name[g].append(p)
+
 
         self.playbooks_to_play = []
         self.instances_to_redeploy = []
@@ -722,17 +756,9 @@ class Topology(PlaybookEvents, InstanceEvents):
     def addToRedeploy(self, name):
         if self.is_running:
             raise RuntimeError("Could modify because running")
-        l = []
-        i  = self.findInstance(name)
-        if i:
-            l.append(i)
-        else:
-            p = self.findPlaybook(name)
-            if p:
-                l = p.instances
-            else:
-                raise NameError("No instance or playbook named %s in topology"%name)
-        for i in l:
+        if not name in self.instances_by_name:
+            raise NameError("No instance, playbook or group named %s in topology"%name)
+        for i in self.instances_by_name[name]:
             if not i in self.instances_to_redeploy:
                 self.instances_to_redeploy.append(i)
                 for c in self.callbacks:
@@ -743,17 +769,9 @@ class Topology(PlaybookEvents, InstanceEvents):
     def removeToRedeploy(self, name):
         if self.is_running:
             raise RuntimeError("Could modify because running")
-        l = []
-        i  = self.findInstance(name)
-        if i:
-            l.append(i)
-        else:
-            p = self.findPlaybook(name)
-            if p:
-                l = p.instances
-            else:
-                raise NameError("No instance or playbook named %s in topology"%name)
-        for i in l:
+        if not name in self.instances_by_name:
+            raise NameError("No instance, playbook or group named %s in topology"%name)
+        for i in self.instances_by_name[name]:
             if i in self.instances_to_redeploy:
                 self.instances_to_redeploy.remove(i)
                 for c in self.callbacks:
@@ -762,33 +780,25 @@ class Topology(PlaybookEvents, InstanceEvents):
     def addToReconfigure(self, name):
         if self.is_running:
             raise RuntimeError("Could modify because running")
-        p = self.findPlaybook(name)
-        if not p:
-            i  = self.findInstance(name)
-            if i:
-                p = self.findPlaybook(i.playbook_file)
-            else:
-                raise NameError("No instance or playbook named %s in topology"%name)
-        if not p in self.playbooks_to_play:
-            self.playbooks_to_play.append(p)
-            for c in self.callbacks:
-                c.onPlaybookAdded(p)
+        if not name in self.playbooks_by_name:
+            raise NameError("No instance, playbook or group named %s in topology"%name)
+        for p in self.playbooks_by_name[name]:
+            if not p in self.playbooks_to_play:
+                self.playbooks_to_play.append(p)
+                for c in self.callbacks:
+                    c.onPlaybookAdded(p)
 
     def removeToReconfigure(self, name):
         if self.is_running:
             raise RuntimeError("Could modify because running")
-        p = self.findPlaybook(name)
-        if not p:
-            i  = self.findInstance(name)
-            if i:
-                p = self.findPlaybook(i.playbook_file)
-            else:
-                raise NameError("No instance or playbook named %s in topology"%name)
-        if p in self.playbooks_to_play:
-            self.playbooks_to_play.remove(p)
-            for c in self.callbacks:
-                c.onPlaybookRemoved(p)
-            self.removeToRedeploy(p.name)
+        if not name in self.playbooks_by_name:
+            raise NameError("No instance, playbook or group named %s in topology"%name)
+        for p in self.playbooks_by_name[name]:
+            if p in self.playbooks_to_play:
+                self.playbooks_to_play.remove(p)
+                for c in self.callbacks:
+                    c.onPlaybookRemoved(p)
+                self.removeToRedeploy(p.name)
 
     def run(self):
         if self.is_running:

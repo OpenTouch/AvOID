@@ -98,6 +98,9 @@ class CliView(TopologyEvents):
     def onPlaybookUpdated(self, playbook):
         self.refreshPlaybookStatus()
 
+    def onPlaybookCompleted(self, playbook):
+        self.refreshPlaybookStatus()
+
     def onAllPlaybooksCompleted(self):
         self.refreshPlaybookStatus()
         print "VMs configured with ansible in %i seconds"%(time.time() - self.playbookBeginTime)
@@ -178,7 +181,10 @@ if __name__ == '__main__':
     elif cmd == "geninventory":
         t.generateAnsibleInventory()
 
-    print "%i instances to recreate and %i playbooks to play"%(len(t.instances_to_redeploy), len(t.playbooks_to_play))
+    else:
+        raise NameError("Unknown command %s"%cmd)
+    print "%i instances to recreate: %s"%(len(t.instances_to_redeploy), ",".join([i.name for i in t.instances_to_redeploy]))
+    print "%i playbooks to play: %s"%(len(t.playbooks_to_play), ",".join([p.name for p in t.playbooks_to_play]))
     t.run()
     while not v.end:
         time.sleep(1)
