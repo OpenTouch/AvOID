@@ -557,8 +557,11 @@ class Topology(PlaybookEvents, InstanceEvents):
     def refreshInstancesThread(self):
         while True:
             time.sleep(self.refreshTime)
-            self.refreshInstances()
-
+            try:
+                self.refreshInstances()
+            except:
+                print "ERROR REFRESHING INSTANCES STATE"
+                print "Unexpected error:", sys.exc_info()[0]
     def refreshInstances(self):
         remainingTopoVMs = list(self.instances)
         vms = self.nova.servers.list()
