@@ -574,7 +574,7 @@ class Topology(PlaybookEvents, InstanceEvents):
                     self.instances_by_name[g].append(i)
                 p = self.findPlaybook(i.playbook_file)
                 if not g in self.playbooks_by_name:
-                    self.playbooks_by_name[p.name] = [p]
+                    self.playbooks_by_name[g] = [p]
                 elif not p in self.playbooks_by_name[g]:
                     self.playbooks_by_name[g].append(p)
 
