@@ -560,7 +560,7 @@ class Topology(PlaybookEvents, InstanceEvents):
         for p in self.playbooks:
             if p.name in self.instances_by_name or p.name in self.playbooks_by_name:
                 raise NameError("Playbook name %s with other playbook or instance"%p.name)
-            self.instances_by_name[p.name] = [p.instances]
+            self.instances_by_name[p.name] = p.instances
             self.playbooks_by_name[p.name] = [p]
         for i in self.instances:
             for g in i.groups:
