@@ -759,7 +759,7 @@ class Topology(PlaybookEvents, InstanceEvents):
         if not name in self.instances_by_name:
             raise NameError("No instance, playbook or group named %s in topology"%name)
         for i in self.instances_by_name[name]:
-            if not i in self.instances_to_redeploy:
+            if not i in self.instances_to_redeploy and not i.static:
                 self.instances_to_redeploy.append(i)
                 for c in self.callbacks:
                     c.onInstanceAdded(i)
@@ -783,7 +783,7 @@ class Topology(PlaybookEvents, InstanceEvents):
         if not name in self.playbooks_by_name:
             raise NameError("No instance, playbook or group named %s in topology"%name)
         for p in self.playbooks_by_name[name]:
-            if not p in self.playbooks_to_play:
+            if not p in self.playbooks_to_play and p.status != "Not playable":
                 self.playbooks_to_play.append(p)
                 for c in self.callbacks:
                     c.onPlaybookAdded(p)

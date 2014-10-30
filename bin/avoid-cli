@@ -149,34 +149,32 @@ if __name__ == '__main__':
 
     v = CliView(t)
 
-    if cmd == "redeploy":
+    if cmd == "redeploy" or cmd == "showredeploy":
         if len(params):
             for name in params:
                 t.addToRedeploy(name)
         else:
-            print "Usage %s: <topology_file.yml> redeploy <instance_name/playbook_name> [<instance_name/playbook_name>]"
+            print "Usage %s: <topology_file.yml> %s <instance_name/playbook_name> [<instance_name/playbook_name>]"%(args[0], cmd)
             sys.exit(1)
 
     elif cmd == "redeployall" or cmd == "status":
         for i in t.instances:
-            if not i.static:
-                t.addToRedeploy(i.name)
+            t.addToRedeploy(i.name)
         if cmd == "status":
             v.printVMsStatus()
             sys.exit(0)
 
-    elif cmd == "runplaybook":
+    elif cmd == "runplaybook" or cmd == "showrunplaybook":
         if len(params):
             for name in params:
                 t.addToReconfigure(name)
         else:
-            print "Usage %s: <topology_file.yml> runplaybook <playbook_name> [<playbook_name>]"
+            print "Usage %s: <topology_file.yml> %s <playbook_name> [<playbook_name>]"%(args[0], cmd)
             sys.exit(1)
                                 
     elif cmd == "runallplaybooks":
         for pb in t.playbooks:
-            if pb.status != "Not playable":
-                t.addToReconfigure(pb.name)
+            t.addToReconfigure(pb.name)
 
     elif cmd == "geninventory":
         t.generateAnsibleInventory()
@@ -185,8 +183,9 @@ if __name__ == '__main__':
         raise NameError("Unknown command %s"%cmd)
     print "%i instances to recreate: %s"%(len(t.instances_to_redeploy), ",".join([i.name for i in t.instances_to_redeploy]))
     print "%i playbooks to play: %s"%(len(t.playbooks_to_play), ",".join([p.name for p in t.playbooks_to_play]))
-    t.run()
-    while not v.end:
-        time.sleep(1)
-    if v.status == "ERROR":
-        sys.exit(1)
+    if cmd != "showredeploy" and cmd != "showrunplaybook":
+        t.run()
+        while not v.end:
+            time.sleep(1)
+        if v.status == "ERROR":
+            sys.exit(1)
