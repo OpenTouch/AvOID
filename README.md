@@ -92,6 +92,7 @@ For each instance, following parameters are available:
 * **additional_network**: collection of additional network names the instance has to be associated with. This will create network interfaces in instances (eth1, ...). eth0 is attached to global 'os_network'
 * **vips**: collection virtual IPs, attached to network interfaces (eth0, eth1, ...)
 * **depends**: playbook file names (without extension) to be played before running playbook for this instance.
+* **groups**: collection of groups instance belongs, comma separated. This is usefull to redeploy or reconfigure a set of nodes.
 * **static**: means that instance is not redeployable. Instances without playbook are considered static. 
 
 In case of combining parameters 'floatings_ips', 'additional_network' and 'vips', they have to be consistent (no check).
@@ -171,6 +172,12 @@ Usage avoid-cli: <topology_file.yml> <command> [opts]
 Under development.
 
 This is a web server using Tornado with websockets. It listens on port 8888.
+It embeds jquery and bootstrap.
+
+http://jquery.com
+
+http://getbootstrap.com/
+
 
 ```
 Usage avoid-web: <topology_file.yml>
