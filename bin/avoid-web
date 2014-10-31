@@ -189,7 +189,7 @@ if __name__ == '__main__':
         args.remove("-v")
     wss = False
     if "-wss" in args:
-        wss = False
+        wss = True
         args.remove("-wss")
 
     # Check argument

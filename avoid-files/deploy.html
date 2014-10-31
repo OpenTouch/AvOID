@@ -60,7 +60,6 @@
                         reconf = '<input type="checkbox" ' + (o.reconf?"checked":"") + ' onclick="onReconfCheckboxClick(this, \'' + o.name + '\')"/>';
                     }
                     row = '<td class="text-center">' + pbname + '</td><td class="text-center">' + iname + '</td><td class="text-center">' + redeploy + '</td><td class="text-center">' + reconf + '</td><td class="text-center">' + o.status +'</td>';
-                    var e = document.getElementById();
                     if($('#' + o.name).length){
                         $('#' + o.name).html(row);
                     }
