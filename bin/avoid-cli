@@ -66,7 +66,7 @@ class CliView(TopologyEvents):
         print "VMs ready in %i seconds"%(time.time() - self.spawnBeginTime)
 
     def onInventoryGenerated(self):
-        print "Ansible inventory generated"
+        print "Ansible inventory generated: %s"%self.topo.inventory_file
 
     def onAllPlaybooksStarted(self):
         print "Starting playing playbooks..."
@@ -178,6 +178,7 @@ if __name__ == '__main__':
 
     elif cmd == "geninventory":
         t.generateAnsibleInventory()
+        sys.exit(0)
 
     else:
         raise NameError("Unknown command %s"%cmd)
