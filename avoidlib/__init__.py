@@ -635,8 +635,8 @@ class Topology(PlaybookEvents, InstanceEvents):
         for c in self.callbacks:
             c.onInstanceDeleted(instance)
         if self.is_running and instance in self.instances_to_redeploy:
-	    # sleep 5 seconds before recreating the VM to workaroud a neutron-dhcp-agent issue (DHCP not able to assign the IP if the VM is created directly after been deleted...)
-	    time.sleep(5)
+	    # sleep 30 seconds before recreating the VM to workaroud a neutron-dhcp-agent issue (DHCP not able to assign the IP if the VM is created directly after been deleted...)
+	    time.sleep(30)
             instance.create()
 
     def startRedeployInstances(self):
